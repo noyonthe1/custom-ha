@@ -35,3 +35,29 @@ automation:
 ```
 
 The response contains `description` (string) and `objects` (list of objects with `label` and `description`). Treat model results as fallible: a snapshot can miss movement and models can invent or overlook details. Start with motion-triggered analysis and tune the prompt and camera placement using actual examples.
+
+## Scheduled snapshots
+
+Home Assistant's time pattern trigger can run the same action on a schedule. This example uses your enabled front camera; stagger schedules across cameras to avoid simultaneous CPU-heavy requests. Choose an interval based on measured processing time.
+
+```yaml
+automation:
+  - alias: Periodic front camera check
+    triggers:
+      - trigger: time_pattern
+        minutes: "/10"
+    actions:
+      - action: camera_vision.analyze
+        data:
+          config_entry_id: YOUR_CONFIG_ENTRY_ID
+          camera_entity_id: camera.front_fluent
+          prompt: Describe visible people, vehicles, and packages. Mention anything visibly unusual; say when uncertain.
+        response_variable: vision
+      - action: persistent_notification.create
+        data:
+          title: Front camera check
+          message: "{{ vision.description }}"
+    mode: single
+```
+
+Your Reolink installation has motion, person and vehicle sensors for front, office, garage and deck. Use motion events to catch activity that the camera's own person/vehicle classifier might miss; add cooldowns to control load. A single snapshot has no memory of the normal scene, so "unusual" is only the model's judgment, not reliable change detection. License plates need enough readable pixels; consider enabling the Reolink clear stream and a dedicated plate-recognition system for that use.
