@@ -12,7 +12,7 @@ from PIL import Image, UnidentifiedImageError
 
 API_KEY = os.environ.get("VISION_API_KEY", "")
 OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://ollama:11434").rstrip("/")
-MODEL = os.environ.get("VISION_MODEL", "qwen3-vl:8b")
+MODEL = os.environ.get("VISION_MODEL", "qwen3-vl:4b-instruct")
 MAX_IMAGE_BYTES = 8 * 1024 * 1024
 Image.MAX_IMAGE_PIXELS = 25_000_000
 app = FastAPI(title="Camera Vision API")
@@ -63,7 +63,7 @@ async def analyze(request: AnalyzeRequest, authorization: str = Header(default="
         ), "images": [request.image]}],
     }
     try:
-        async with httpx.AsyncClient(timeout=150) as client:
+        async with httpx.AsyncClient(timeout=570) as client:
             response = await client.post(f"{OLLAMA_URL}/api/chat", json=payload)
             response.raise_for_status()
             return Analysis.model_validate_json(response.json()["message"]["content"])
