@@ -37,7 +37,7 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
             async with session.post(
                 f"{entry.data[CONF_URL]}/analyze", json=payload,
                 headers={"Authorization": f"Bearer {entry.data[CONF_API_KEY]}"},
-                timeout=aiohttp.ClientTimeout(total=180),
+                timeout=aiohttp.ClientTimeout(total=600),
             ) as response:
                 response.raise_for_status()
                 result = await response.json()
