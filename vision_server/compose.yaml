@@ -1,0 +1,18 @@
+services:
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      VISION_API_KEY: ${VISION_API_KEY:?Set VISION_API_KEY in .env}
+      VISION_MODEL: ${VISION_MODEL:-qwen3-vl:8b}
+      OLLAMA_URL: http://ollama:11434
+    restart: unless-stopped
+  ollama:
+    image: ollama/ollama:latest
+    volumes:
+      - ollama_data:/root/.ollama
+    gpus: all
+    restart: unless-stopped
+volumes:
+  ollama_data:
