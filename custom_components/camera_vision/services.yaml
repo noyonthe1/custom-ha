@@ -1,0 +1,23 @@
+analyze:
+  name: Analyze camera
+  description: Analyze a camera snapshot with a prompt and return structured results.
+  fields:
+    config_entry_id:
+      name: Camera Vision configuration entry ID
+      required: true
+      selector:
+        config_entry:
+          integration: camera_vision
+    camera_entity_id:
+      name: Camera
+      required: true
+      selector:
+        entity:
+          domain: camera
+    prompt:
+      name: Prompt
+      required: true
+      example: Describe any people or packages visible.
+      selector:
+        text:
+          multiline: true
