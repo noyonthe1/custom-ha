@@ -3,18 +3,23 @@
 import asyncio
 import base64
 import json
+import logging
+from datetime import timedelta
 
 import aiohttp
 import voluptuous as vol
-from homeassistant.components import camera
+from homeassistant.components import camera, persistent_notification
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_URL
 from homeassistant.core import HomeAssistant, ServiceCall, SupportsResponse
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers.event import async_track_time_interval
 
-from .const import DEFAULT_TIMEOUT, DOMAIN, POLL_INTERVAL
+from .const import CONF_FALLBACK_URL, DEFAULT_TIMEOUT, DOMAIN, POLL_INTERVAL
+
+_LOGGER = logging.getLogger(__name__)
 
 CHAT_SCHEMA = vol.Schema(
     {
@@ -150,45 +155,112 @@ def _add_clanker_options(payload: dict, data: dict) -> None:
         payload["clanker"] = options
 
 
-async def _submit_and_wait(hass, entry, path: str, payload: dict, timeout: int) -> dict:
-    """Submit a queued job and return its terminal job response."""
+def _gateway_urls(entry):
+    primary = entry.options.get(CONF_URL, entry.data[CONF_URL])
+    fallback = entry.options.get(CONF_FALLBACK_URL, entry.data.get(CONF_FALLBACK_URL, ""))
+    return [url for url in dict.fromkeys((primary, fallback)) if url]
+
+
+async def _available_gateway(hass, entry):
     session = async_get_clientsession(hass)
-    base_url = entry.options.get(CONF_URL, entry.data[CONF_URL])
-    deadline = asyncio.get_running_loop().time() + timeout
+    for url in _gateway_urls(entry):
+        try:
+            async with session.get(f"{url}/status", timeout=aiohttp.ClientTimeout(total=5)) as response:
+                response.raise_for_status()
+                status = await response.json()
+                if isinstance(status, dict) and "gateway" in status:
+                    return url
+        except (aiohttp.ClientError, asyncio.TimeoutError, ValueError):
+            continue
+    return None
+
+
+def _notify_gateway(hass, entry, available):
+    notification_id = f"{DOMAIN}_gateway_{entry.entry_id}"
+    if available:
+        persistent_notification.async_dismiss(hass, notification_id)
+    else:
+        persistent_notification.async_create(
+            hass, "The configured gateways are unreachable. Check the gateway and its URLs.",
+            title="Clanker AI gateway unavailable", notification_id=notification_id,
+        )
+
+
+async def _cancel_job(session, base_url, job_id):
     try:
-        request_payload = {"data": payload} if isinstance(payload, aiohttp.FormData) else {"json": payload}
-        async with session.post(
-            f"{base_url}{path}", **request_payload,
-            timeout=aiohttp.ClientTimeout(total=30),
+        async with session.delete(
+            f"{base_url}/v1/jobs/{job_id}", timeout=aiohttp.ClientTimeout(total=3)
         ) as response:
             response.raise_for_status()
-            accepted = await response.json()
-        job_id = accepted.get("id") if isinstance(accepted, dict) else None
-        if not job_id:
-            raise HomeAssistantError("Clanker AI returned no job ID")
-        while asyncio.get_running_loop().time() < deadline:
-            await asyncio.sleep(POLL_INTERVAL)
-            async with session.get(
-                f"{base_url}/v1/jobs/{job_id}", timeout=aiohttp.ClientTimeout(total=30)
+    except (aiohttp.ClientError, asyncio.TimeoutError):
+        _LOGGER.warning("Could not cancel Clanker AI job %s at %s", job_id, base_url)
+
+
+async def _submit_and_wait(hass, entry, path: str, payload, timeout: int) -> dict:
+    """Submit once, then poll and cancel on the same gateway."""
+    session = async_get_clientsession(hass)
+    base_url = None
+    job_id = None
+    terminal = False
+    try:
+        async with asyncio.timeout(timeout):
+            base_url = await _available_gateway(hass, entry)
+            _notify_gateway(hass, entry, bool(base_url))
+            if not base_url:
+                raise HomeAssistantError("Clanker AI gateways are unavailable")
+            request_payload = {"data": payload} if isinstance(payload, aiohttp.FormData) else {"json": payload}
+            async with session.post(
+                f"{base_url}{path}", **request_payload, timeout=aiohttp.ClientTimeout(total=30)
             ) as response:
                 response.raise_for_status()
-                job = await response.json()
-            if job.get("state") == "completed":
-                return job
-            if job.get("state") in ("failed", "cancelled", "discarded"):
-                raise HomeAssistantError(job.get("error") or f"Clanker AI job {job.get('state')}")
-        raise HomeAssistantError(f"Clanker AI job {job_id} timed out")
-    except HomeAssistantError:
-        raise
-    except (aiohttp.ClientError, asyncio.TimeoutError, ValueError) as err:
+                accepted = await response.json()
+            accepted_id = accepted.get("id") if isinstance(accepted, dict) else None
+            if not isinstance(accepted_id, str) or not accepted_id:
+                raise HomeAssistantError("Clanker AI returned no job ID")
+            job_id = accepted_id
+            while True:
+                await asyncio.sleep(POLL_INTERVAL)
+                try:
+                    async with session.get(
+                        f"{base_url}/v1/jobs/{job_id}", timeout=aiohttp.ClientTimeout(total=30)
+                    ) as response:
+                        response.raise_for_status()
+                        job = await response.json()
+                except (aiohttp.ClientConnectionError, asyncio.TimeoutError):
+                    continue
+                if not isinstance(job, dict):
+                    raise HomeAssistantError(f"Invalid response for Clanker AI job {job_id}")
+                if job.get("state") == "completed":
+                    terminal = True
+                    return job
+                if job.get("state") in ("failed", "cancelled", "discarded"):
+                    terminal = True
+                    raise HomeAssistantError(job.get("error") or f"Clanker AI job {job.get('state')}")
+    except asyncio.TimeoutError as err:
+        raise HomeAssistantError(f"Clanker AI request timed out{f' (job {job_id})' if job_id else ''}") from err
+    except (aiohttp.ClientError, ValueError) as err:
         raise HomeAssistantError(f"Clanker AI request failed: {err}") from err
+    finally:
+        if job_id and not terminal:
+            await _cancel_job(session, base_url, job_id)
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """Load the configured gateway."""
+    """Monitor the configured gateways."""
+    async def check_gateway(_now=None):
+        _notify_gateway(hass, entry, bool(await _available_gateway(hass, entry)))
+
+    entry.async_on_unload(async_track_time_interval(hass, check_gateway, timedelta(minutes=1)))
+    entry.async_on_unload(entry.add_update_listener(_options_updated))
+    hass.async_create_task(check_gateway())
     return True
+
+
+async def _options_updated(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    _notify_gateway(hass, entry, bool(await _available_gateway(hass, entry)))
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload the configured gateway."""
+    persistent_notification.async_dismiss(hass, f"{DOMAIN}_gateway_{entry.entry_id}")
     return True

@@ -8,7 +8,9 @@ In HACS (called Marketplace in Home Assistant 2026.11 and newer), open **⋮ →
 
 For manual installation, copy `custom_components/clanker_ai` into the `custom_components` directory of your Home Assistant configuration and restart Home Assistant.
 
-To change the gateway IP or URL later, open **Settings → Devices & services → Clanker AI → Configure** and update the Gateway URL.
+To change the gateway URL or set an optional fallback, open **Settings → Devices & services → Clanker AI → Configure**. The fallback is used if the primary gateway is unreachable before a job is submitted. An accepted job stays on its original gateway.
+
+The integration checks the gateways at startup and every minute. When neither configured URL is reachable, it shows a Home Assistant persistent notification and clears it when a gateway is reachable again. Timed-out or cancelled actions attempt to cancel the submitted job; that cleanup can take up to three extra seconds.
 
 ## Chat or analyze an image
 

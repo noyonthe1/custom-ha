@@ -5,7 +5,8 @@
         "title": "Connect to Clanker AI",
         "description": "Enter your Clanker AI Gateway URL.",
         "data": {
-          "url": "Gateway URL"
+          "url": "Gateway URL",
+          "fallback_url": "Fallback gateway URL (optional)"
         }
       }
     },
@@ -22,7 +23,8 @@
         "title": "Clanker AI settings",
         "description": "Change the Clanker AI Gateway URL.",
         "data": {
-          "url": "Gateway URL"
+          "url": "Gateway URL",
+          "fallback_url": "Fallback gateway URL (optional)"
         }
       }
     },
