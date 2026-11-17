@@ -24,6 +24,20 @@ response_variable: ai_result
 
 For text only, omit `camera_entity_id`. `system_prompt`, `priority` (0–9), `tags`, and `timeout` (seconds) are optional. The completed job response is available as `ai_result.result`.
 
+## Detect objects in a camera image
+
+```yaml
+action: clanker_ai.detect_objects
+data:
+  config_entry_id: YOUR_CONFIG_ENTRY_ID
+  camera_entity_id: camera.front_door
+  model: configured-yolo-model.pt
+  conf: 0.25
+response_variable: detection_result
+```
+
+The completed job response is available as `detection_result`; its `result` contains the detection output. `priority`, `tags`, and `timeout` are optional.
+
 ## Generate an image
 
 ```yaml
