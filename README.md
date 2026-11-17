@@ -4,7 +4,9 @@ A generic Home Assistant custom integration for sending automation prompts to th
 
 ## Install
 
-Copy `custom_components/clanker_ai` into the `custom_components` directory of your Home Assistant configuration, restart Home Assistant, then add **Clanker AI** under **Settings → Devices & services → Add integration**. The default gateway URL is `http://100.112.231.81:4000`.
+In HACS (called Marketplace in Home Assistant 2026.11 and newer), open **⋮ → Custom repositories**, add `https://github.com/noyonthe1/custom-ha` as an **Integration**, then install **Clanker AI**. Restart Home Assistant and add it under **Settings → Devices & services → Add integration**. The default gateway URL is `http://100.112.231.81:4000`.
+
+For manual installation, copy `custom_components/clanker_ai` into the `custom_components` directory of your Home Assistant configuration and restart Home Assistant.
 
 To change the gateway IP or URL later, open **Settings → Devices & services → Clanker AI → Configure** and update the Gateway URL.
 

@@ -3,7 +3,9 @@
   "name": "Clanker AI",
   "version": "0.1.0",
   "config_flow": true,
-  "documentation": "https://clanker.devotrix.com/docs",
+  "documentation": "https://github.com/noyonthe1/custom-ha#readme",
+  "issue_tracker": "https://github.com/noyonthe1/custom-ha/issues",
+  "codeowners": ["@noyonthe1"],
   "iot_class": "local_polling",
   "requirements": []
 }
