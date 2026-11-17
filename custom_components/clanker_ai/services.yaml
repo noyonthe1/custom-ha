@@ -1,0 +1,101 @@
+chat:
+  name: Chat with Clanker AI
+  description: Queue a text prompt or camera image analysis and return the completed result.
+  fields:
+    config_entry_id:
+      name: Clanker AI connection
+      required: true
+      selector:
+        config_entry:
+          integration: clanker_ai
+    prompt:
+      name: Prompt
+      required: true
+      selector:
+        text:
+          multiline: true
+    model:
+      name: Model
+      default: default
+      selector:
+        text:
+    system_prompt:
+      name: System prompt
+      selector:
+        text:
+          multiline: true
+    camera_entity_id:
+      name: Camera image (optional)
+      description: Attach the latest camera snapshot for vision models.
+      selector:
+        entity:
+          domain: camera
+    priority:
+      name: Queue priority
+      selector:
+        number:
+          min: 0
+          max: 9
+          mode: slider
+    tags:
+      name: Job tags
+      selector:
+        object:
+    timeout:
+      name: Timeout in seconds
+      default: 600
+      selector:
+        number:
+          min: 1
+          max: 3600
+          mode: box
+generate_image:
+  name: Generate image
+  description: Queue image generation and return the completed result.
+  fields:
+    config_entry_id:
+      name: Clanker AI connection
+      required: true
+      selector:
+        config_entry:
+          integration: clanker_ai
+    prompt:
+      name: Prompt
+      required: true
+      selector:
+        text:
+          multiline: true
+    model:
+      name: Model
+      default: flux-schnell-q4ks-img
+      selector:
+        text:
+    width:
+      name: Width
+      default: 512
+      selector:
+        number:
+          min: 64
+          max: 2048
+          step: 64
+          mode: box
+    height:
+      name: Height
+      default: 512
+      selector:
+        number:
+          min: 64
+          max: 2048
+          step: 64
+          mode: box
+    priority:
+      name: Queue priority
+      selector:
+        number:
+          min: 0
+          max: 9
+          mode: slider
+    tags:
+      name: Job tags
+      selector:
+        object:

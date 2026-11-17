@@ -1,0 +1,9 @@
+{
+  "domain": "clanker_ai",
+  "name": "Clanker AI",
+  "version": "0.1.0",
+  "config_flow": true,
+  "documentation": "https://clanker.devotrix.com/docs",
+  "iot_class": "local_polling",
+  "requirements": []
+}

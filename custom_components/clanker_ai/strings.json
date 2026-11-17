@@ -1,0 +1,33 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect to Clanker AI",
+        "description": "Enter your Clanker AI Gateway URL.",
+        "data": {
+          "url": "Gateway URL"
+        }
+      }
+    },
+    "error": {
+      "invalid_url": "Enter an HTTP or HTTPS URL."
+    },
+    "abort": {
+      "already_configured": "This gateway is already configured."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Clanker AI settings",
+        "description": "Change the Clanker AI Gateway URL.",
+        "data": {
+          "url": "Gateway URL"
+        }
+      }
+    },
+    "error": {
+      "invalid_url": "Enter an HTTP or HTTPS URL."
+    }
+  }
+}

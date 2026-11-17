@@ -1,1 +1,0 @@
-{"config":{"step":{"user":{"title":"Connect to Camera Vision","description":"Enter the vision server URL and API key.","data":{"url":"Server URL","api_key":"API key"}}},"error":{"invalid_url":"Enter an HTTP or HTTPS URL."},"abort":{"already_configured":"This server is already configured."}}}

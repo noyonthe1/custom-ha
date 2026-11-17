@@ -1,63 +1,49 @@
-# Camera Vision for Home Assistant
+# Clanker AI for Home Assistant
 
-A custom integration that sends a camera snapshot and a prompt to the companion Camera Vision API, then returns a description and detected objects to an automation. The API runs separately on the GPU server; its code and setup instructions are on the `vision-server` branch.
+A generic Home Assistant custom integration for sending automation prompts to the queued Clanker AI Gateway. It supports text chat, camera image analysis with a vision model, and image generation. Actions wait for the queued job to finish and return its job response for use with `response_variable`.
 
 ## Install
 
-1. Copy `custom_components/camera_vision` to the same location under your Home Assistant configuration directory and restart Home Assistant.
-2. In **Settings → Devices & services → Add integration**, add **Camera Vision**, entering the server URL (for example `http://192.168.1.10:8000`) and its API key.
-3. Find the integration's configuration entry ID in Developer Tools → Actions using the configuration selector.
+Copy `custom_components/clanker_ai` into the `custom_components` directory of your Home Assistant configuration, restart Home Assistant, then add **Clanker AI** under **Settings → Devices & services → Add integration**. The default gateway URL is `http://100.112.231.81:4000`.
 
-The server should be reachable only on a trusted network. HTTP sends the API key and camera images in clear text; use HTTPS through a trusted reverse proxy or a VPN if the network is not trusted.
+To change the gateway IP or URL later, open **Settings → Devices & services → Clanker AI → Configure** and update the Gateway URL.
 
-## Automation example
-
-Trigger the action from motion detection, a doorbell, a schedule, or manually. Replace the trigger, camera and entry ID for your installation:
+## Chat or analyze an image
 
 ```yaml
-automation:
-  - alias: Describe front door motion
-    triggers:
-      - trigger: state
-        entity_id: binary_sensor.front_door_motion
-        to: "on"
-    actions:
-      - action: camera_vision.analyze
-        data:
-          config_entry_id: YOUR_CONFIG_ENTRY_ID
-          camera_entity_id: camera.front_door
-          prompt: Describe any people or packages at the door. Say if the view is unclear.
-        response_variable: vision
-      - action: persistent_notification.create
-        data:
-          title: Front door
-          message: "{{ vision.description }}"
+action: clanker_ai.chat
+data:
+  config_entry_id: YOUR_CONFIG_ENTRY_ID
+  model: qwen3vl-32b-q4km-v8k
+  prompt: Describe what is happening. Be concise and mention uncertainty.
+  camera_entity_id: camera.front_door
+response_variable: ai_result
 ```
 
-The response contains `description` (string) and `objects` (list of objects with `label` and `description`). Treat model results as fallible: a snapshot can miss movement and models can invent or overlook details. Start with motion-triggered analysis and tune the prompt and camera placement using actual examples.
+For text only, omit `camera_entity_id`. `system_prompt`, `priority` (0–9), `tags`, and `timeout` (seconds) are optional. The completed job response is available as `ai_result.result`.
 
-## Scheduled snapshots
-
-Home Assistant's time pattern trigger can run the same action on a schedule. This example uses your enabled front camera; stagger schedules across cameras to avoid simultaneous CPU-heavy requests. Choose an interval based on measured processing time.
+## Generate an image
 
 ```yaml
-automation:
-  - alias: Periodic front camera check
-    triggers:
-      - trigger: time_pattern
-        minutes: "/10"
-    actions:
-      - action: camera_vision.analyze
-        data:
-          config_entry_id: YOUR_CONFIG_ENTRY_ID
-          camera_entity_id: camera.front_fluent
-          prompt: Describe visible people, vehicles, and packages. Mention anything visibly unusual; say when uncertain.
-        response_variable: vision
-      - action: persistent_notification.create
-        data:
-          title: Front camera check
-          message: "{{ vision.description }}"
-    mode: single
+action: clanker_ai.generate_image
+data:
+  config_entry_id: YOUR_CONFIG_ENTRY_ID
+  model: flux-schnell-q4ks-img
+  prompt: A small robot watering plants in a sunny greenhouse
+  width: 512
+  height: 512
+response_variable: image_result
 ```
 
-Your Reolink installation has motion, person and vehicle sensors for front, office, garage and deck. Use motion events to catch activity that the camera's own person/vehicle classifier might miss; add cooldowns to control load. A single snapshot has no memory of the normal scene, so "unusual" is only the model's judgment, not reliable change detection. License plates need enough readable pixels; consider enabling the Reolink clear stream and a dedicated plate-recognition system for that use.
+The completed job response is available as `image_result`; its `result` contains the gateway image result. Use its returned image URL in a notification or other action.
+
+## Use the result
+
+```yaml
+action: persistent_notification.create
+data:
+  title: Clanker AI
+  message: "{{ ai_result.result.choices[0].message.content }}"
+```
+
+The gateway has no API key authentication configured. Keep it on a trusted network or add access control through a trusted HTTPS reverse proxy before exposing it beyond your LAN/VPN.
